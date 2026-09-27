@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1420" />
+  <title>라이어 게임</title>
+  <link rel="stylesheet" href="/common.css" />
+  <style>
+    html, body { min-height: 100%; }
+    body {
+      font-size: 17px;
+      touch-action: manipulation;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input { -webkit-user-select: text; user-select: text; }
+    .top { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-2); border-bottom: 1px solid var(--line); font-size: 14px; }
+    .top b { color: var(--accent); }
+    main { padding: 20px 16px 120px; max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 26px; margin: 8px 0 4px; }
+    h2 { font-size: 20px; margin: 16px 0 8px; }
+    .center { text-align: center; padding-top: 6vh; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .emoji { font-size: 64px; line-height: 1; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .field label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+    .field input { font-size: 20px; padding: 14px; }
+    .btn.block { width: 100%; padding: 15px; font-size: 18px; }
+    .err { color: var(--bad); min-height: 1.4em; font-weight: 600; }
+    .timer { font-size: 56px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .timer.low { color: var(--bad); }
+    .pill { display: inline-block; background: var(--panel-2); border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; font-weight: 700; }
+
+    /* 역할 카드 — 시민과 라이어가 같은 레이아웃 */
+    .rolecard {
+      margin: 16px auto 0; width: 100%; height: 300px; border-radius: 20px; position: relative;
+      background: linear-gradient(145deg, #2b3552, #1b2236); border: 2px solid var(--line);
+      display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;
+      touch-action: none;
+    }
+    .rolecard .cover { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .rolecard .cover .emoji { font-size: 54px; }
+    .rolecard .inner { display: none; flex-direction: column; gap: 10px; align-items: center; }
+    .rolecard.open { border-color: var(--accent); }
+    .rolecard.open .cover { display: none; }
+    .rolecard.open .inner { display: flex; }
+    .rolecard .cat { color: var(--muted); font-weight: 700; }
+    .rolecard .kw { font-size: 38px; font-weight: 900; color: var(--accent); word-break: keep-all; }
+    .rolecard .liar { font-size: 20px; font-weight: 800; line-height: 1.5; word-break: keep-all; }
+
+    /* 투표 */
+    .cands { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .cand {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px;
+      background: var(--panel); border: 2px solid var(--line); text-align: left; width: 100%; cursor: pointer;
+    }
+    .cand .nm { font-weight: 800; font-size: 18px; }
+    .cand .wd { color: var(--muted); font-weight: 600; }
+    .cand.sel { border-color: var(--accent); background: rgba(255, 204, 51, 0.12); }
+    .cand.sel .nm::before { content: '✓ '; color: var(--accent); }
+
+    .scorebox { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 10px; }
+    .scorebox div { background: var(--panel); border-radius: 12px; padding: 12px; }
+    .scorebox .v { font-size: 30px; font-weight: 900; }
+    .scorebox .k { color: var(--muted); font-size: 13px; font-weight: 700; }
+
+    /* 열람 버튼 (모든 참가자에게 같은 버튼) */
+    #peekBtn {
+      position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 64px; height: 64px; border-radius: 50%;
+      background: var(--panel-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+      font-size: 26px; z-index: 30; touch-action: none; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    }
+    #peekBtn.ghost { opacity: 0; box-shadow: none; }
+    #peek {
+      position: fixed; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom)); max-height: 60vh; overflow: auto;
+      background: var(--panel); border: 2px solid var(--accent); border-radius: 16px; padding: 16px; z-index: 29;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); pointer-events: none;
+    }
+    #peek .kw { font-size: 30px; font-weight: 900; color: var(--accent); }
+    .words { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .words span { background: var(--panel-2); padding: 4px 10px; border-radius: 8px; font-weight: 700; }
+    .words span.old { opacity: 0.6; }
+    #connBanner { position: fixed; top: 0; left: 0; right: 0; background: var(--bad); color: #fff; text-align: center; font-weight: 700; padding: 6px; z-index: 50; }
+  </style>
+</head>
+<body>
+  <div id="connBanner" class="hidden">연결이 끊겼습니다. 다시 연결하는 중…</div>
+  <div class="top" id="top"><span>🕵️ <b>LIAR GAME</b></span><span id="topInfo"></span></div>
+  <main id="main"><div class="center muted">연결 중…</div></main>
+  <div id="peek" class="hidden"></div>
+  <div id="peekBtn" class="hidden" aria-label="열람">👁️</div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/common.js"></script>
+  <script src="/play.js"></script>
+</body>
+</html>

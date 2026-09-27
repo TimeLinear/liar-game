@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>라이어 게임 · 스크린</title>
+  <link rel="stylesheet" href="/common.css" />
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; font-size: clamp(14px, 1.25vw, 26px); }
+    .bar {
+      display: flex; align-items: center; gap: 1.2em; padding: 0.7em 1.4em;
+      background: var(--bg-2); border-bottom: 1px solid var(--line);
+    }
+    .brand { font-weight: 900; letter-spacing: 0.08em; color: var(--accent); font-size: 1.2em; }
+    #info { flex: 1; color: var(--muted); font-weight: 600; font-size: 1.05em; }
+    #info b { color: var(--text); }
+    #timer { font-variant-numeric: tabular-nums; font-weight: 900; font-size: 2em; min-width: 3.2em; text-align: right; }
+    #timer.low { color: var(--bad); }
+    #timer .paused { font-size: 0.45em; color: var(--warn); vertical-align: middle; margin-right: 0.4em; }
+    main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1.2em 1.6em 4.6em; position: relative; }
+    .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.6em; }
+    .huge { font-size: 5em; font-weight: 900; line-height: 1.1; }
+    .big { font-size: 2.6em; font-weight: 800; }
+    .mid { font-size: 1.5em; font-weight: 700; }
+    .label { color: var(--muted); font-weight: 700; letter-spacing: 0.05em; }
+
+    /* 로비 */
+    .lobby { flex: 1; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 2em; min-height: 0; }
+    .join { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.8em; background: var(--panel); border-radius: var(--radius); padding: 1.5em; }
+    .join img { width: min(100%, 38vh); background: #fff; border-radius: 12px; padding: 10px; }
+    .code { font-size: 4.6em; font-weight: 900; letter-spacing: 0.15em; color: var(--accent); line-height: 1; }
+    .url { font-size: 1.1em; color: var(--muted); word-break: break-all; }
+    .roster { background: var(--panel); border-radius: var(--radius); padding: 1.2em 1.4em; display: flex; flex-direction: column; min-height: 0; }
+    .roster h2 { margin: 0 0 0.6em; font-size: 1.6em; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5em; align-content: flex-start; overflow: auto; }
+    .chip { background: var(--panel-2); border: 1px solid var(--line); padding: 0.35em 0.9em; border-radius: 999px; font-weight: 700; font-size: 1.15em; animation: fadeUp 0.3s; }
+    .chip.off { opacity: 0.45; }
+
+    /* 진행 바 */
+    .progress { width: min(70vw, 900px); height: 1.1em; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+    .progress > i { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
+
+    /* 힌트 그리드 */
+    .grid { flex: 1; display: grid; gap: 0.6em; min-height: 0; grid-auto-rows: 1fr; }
+    .cell {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0.4em 0.6em;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0; overflow: hidden;
+    }
+    .cell .n { color: var(--muted); font-weight: 700; font-size: 0.95em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .cell .w { font-weight: 900; font-size: 1.9em; line-height: 1.15; word-break: keep-all; text-align: center; }
+    .cell.missing .w, .cell.hid .w { color: var(--muted); font-size: 1.2em; font-weight: 700; }
+    .cell.out { opacity: 0.35; }
+    .cell.out .n::after { content: ' · 퇴장'; color: var(--bad); }
+    .cell.pick { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent) inset; }
+    .grid.reveal .cell { animation: pop 0.45s both; }
+    .gridhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6em; }
+    .gridhead .mid b { color: var(--accent); }
+
+    .countdown { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 32, 0.92); z-index: 5; }
+    .countdown span { font-size: 16em; font-weight: 900; color: var(--accent); animation: pop 0.5s; }
+
+    /* 판정 팝업 */
+    .overlay { position: fixed; inset: 0; background: rgba(8, 11, 18, 0.72); display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .popup {
+      background: var(--panel); border: 2px solid var(--line); border-radius: 24px; padding: 2em 3em; min-width: 40vw; max-width: 80vw;
+      text-align: center; animation: pop 0.4s; display: flex; flex-direction: column; gap: 0.5em; align-items: center;
+    }
+    .popup.clickable { cursor: pointer; border-color: var(--accent); }
+    .popup.clickable:hover { transform: scale(1.02); }
+    .popup .who { font-size: 4.2em; font-weight: 900; line-height: 1.1; }
+    .popup .verdict { font-size: 3.2em; font-weight: 900; animation: pop 0.5s; }
+    .popup.liar { border-color: var(--bad); box-shadow: 0 0 60px rgba(255, 93, 108, 0.35); }
+    .popup.citizen { border-color: var(--good); box-shadow: 0 0 60px rgba(61, 220, 151, 0.3); }
+
+    /* 결과 */
+    .cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.6em; min-height: 0; }
+    .card { background: var(--panel); border-radius: var(--radius); padding: 1.2em 1.5em; min-height: 0; overflow: hidden; }
+    .card h3 { margin: 0 0 0.6em; font-size: 1.4em; color: var(--muted); }
+    .rows { display: flex; flex-direction: column; gap: 0.45em; }
+    .row { display: flex; align-items: center; gap: 0.8em; font-size: 1.35em; padding: 0.35em 0.6em; background: var(--panel-2); border-radius: 10px; animation: fadeUp 0.4s both; }
+    .row .r { width: 2.2em; font-weight: 900; color: var(--accent); }
+    .row .nm { flex: 1; font-weight: 800; }
+    .row .pt { font-weight: 900; font-variant-numeric: tabular-nums; }
+    .keyword { font-size: 4em; font-weight: 900; color: var(--accent); animation: pop 0.6s; }
+
+    .podium .row { font-size: 1.8em; padding: 0.5em 0.9em; }
+    .podium .row.first { background: linear-gradient(90deg, rgba(255, 204, 51, 0.3), var(--panel-2)); border: 1px solid var(--accent); }
+    .congrats { font-size: 4.4em; font-weight: 900; color: var(--accent); animation: pop 0.7s; text-align: center; margin: 0.1em 0 0.4em; }
+
+    .actions { position: fixed; right: 1.2em; bottom: 1.2em; display: flex; gap: 0.6em; z-index: 20; }
+    .actions .btn { font-size: 1.15em; padding: 0.7em 1.4em; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); }
+    #conn { position: fixed; left: 0.8em; bottom: 0.6em; font-size: 0.75em; color: var(--muted); z-index: 20; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">LIAR GAME</div>
+    <div id="info"></div>
+    <div id="timer"></div>
+  </header>
+  <main id="main"><div class="center"><div class="mid muted">서버에 연결하는 중…</div></div></main>
+  <div id="overlay"></div>
+  <div class="actions" id="actions"></div>
+  <div id="conn"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/common.js"></script>
+  <script src="/screen.js"></script>
+</body>
+</html>

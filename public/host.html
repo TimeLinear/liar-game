@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>라이어 게임 · 사회자</title>
+  <link rel="stylesheet" href="/common.css" />
+  <style>
+    body { font-size: 15px; }
+    header {
+      position: sticky; top: 0; z-index: 10; background: var(--bg-2); border-bottom: 1px solid var(--line);
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 16px;
+    }
+    header .brand { font-weight: 900; color: var(--accent); letter-spacing: 0.05em; }
+    header .stat b { color: var(--text); }
+    header .stat { color: var(--muted); }
+    #hTimer { font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; margin-left: auto; }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+    .card.wide { grid-column: 1 / -1; }
+    .card h2 { font-size: 16px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+    .card h2 .muted { font-weight: 500; font-size: 13px; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; font-size: 13px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .scroll { max-height: 420px; overflow: auto; }
+    .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    .msg { font-weight: 600; margin-top: 8px; min-height: 1.3em; }
+    .settings { display: grid; grid-template-columns: 1fr 110px; gap: 8px 12px; align-items: center; }
+    .settings label { color: var(--muted); }
+    .settings input[type='number'] { padding: 6px 8px; }
+    #secretBtn { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+    #secret { margin-top: 10px; padding: 12px; border-radius: 10px; background: var(--bg-2); border: 1px dashed var(--accent); }
+    #secret .kw { font-size: 26px; font-weight: 900; color: var(--accent); }
+    .bankcat { margin-top: 10px; }
+    .bankcat h3 { font-size: 14px; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; }
+    .bankitems { display: flex; flex-wrap: wrap; gap: 6px; }
+    .bankitem { background: var(--panel-2); border-radius: 8px; padding: 3px 4px 3px 10px; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+    .bankitem button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; }
+    .bankitem button:hover { color: var(--bad); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .auth { max-width: 380px; margin: 12vh auto; }
+    tr.dim td { opacity: 0.5; }
+    a { color: var(--blue); }
+  </style>
+</head>
+<body>
+  <div id="authBox" class="card auth hidden">
+    <h2>🔑 사회자 인증</h2>
+    <p class="muted">서버를 켤 때 콘솔에 출력된 사회자 키를 입력하세요.</p>
+    <form id="authForm" class="stack"><input id="authKey" type="text" placeholder="사회자 키" autocomplete="off" />
+      <div class="msg bad" id="authErr"></div><button class="btn primary" type="submit">확인</button></form>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <span class="brand">LIAR GAME · 사회자</span>
+      <span class="stat">방 코드 <b id="hCode">-</b></span>
+      <span class="stat">단계 <b id="hPhase">-</b></span>
+      <span class="stat" id="hSetRound"></span>
+      <span id="hTimer"></span>
+    </header>
+    <main>
+      <section class="card">
+        <h2>🎮 진행 제어</h2>
+        <div id="controls"></div>
+        <div class="msg" id="ctlMsg"></div>
+        <p class="note">
+          <a id="screenLink" target="_blank" rel="noopener">스크린 열기 (프로젝터용) ↗</a> ·
+          <a id="playLink" target="_blank" rel="noopener">참가자 페이지 ↗</a>
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>🤫 비밀 정보 <span class="muted">— 누르고 있는 동안만 보입니다</span></h2>
+        <button class="btn" id="secretBtn">꾹 눌러서 제시어·라이어 보기</button>
+        <div id="secret" class="hidden"></div>
+      </section>
+
+      <section class="card">
+        <h2>📡 연결 진단</h2>
+        <div id="conn"></div>
+      </section>
+
+      <section class="card">
+        <h2>👥 참가자 <span class="muted" id="pCount"></span></h2>
+        <div class="scroll" id="players"></div>
+      </section>
+
+      <section class="card">
+        <h2>💬 이번 라운드 힌트 <span class="muted">— 부적절하면 스크린에서 가리기</span></h2>
+        <div class="scroll" id="hints"></div>
+      </section>
+
+      <section class="card">
+        <h2>🗳️ 투표 현황 <span class="muted">— 스크린에는 표시되지 않음</span></h2>
+        <div id="votes"></div>
+      </section>
+
+      <section class="card">
+        <h2>🎯 제시어 맞히기 기록 <span class="muted">— 애매하면 수동 판정</span></h2>
+        <div id="guesses"></div>
+      </section>
+
+      <section class="card">
+        <h2>⚖️ 밸런스 <span class="muted">— 세트별 평균 점수</span></h2>
+        <div id="balance"></div>
+      </section>
+
+      <section class="card">
+        <h2>⚙️ 설정 <span class="muted" id="lockNote"></span></h2>
+        <form id="settingsForm">
+          <div class="settings" id="settingsFields"></div>
+          <div class="btns" style="margin-top:12px"><button class="btn primary" type="submit" id="saveSettings">설정 저장</button>
+            <button class="btn ghost" type="button" id="revertSettings">되돌리기</button></div>
+          <div class="msg" id="setMsg"></div>
+        </form>
+      </section>
+
+      <section class="card wide">
+        <h2>📚 제시어 뱅크 <span class="muted" id="bankCount"></span></h2>
+        <form id="bankAdd" class="row2" autocomplete="off">
+          <input name="category" type="text" placeholder="카테고리 (예: 음식)" required />
+          <input name="word" type="text" placeholder="제시어 (예: 짜장면)" required />
+          <input name="aliases" type="text" placeholder="허용 별칭, 쉼표로 구분 (예: 자장면)" />
+          <button class="btn primary" type="submit">추가</button>
+        </form>
+        <details style="margin-top:10px">
+          <summary class="muted">여러 개 한 번에 추가</summary>
+          <p class="note">한 줄에 하나씩 <code>카테고리 | 제시어 | 별칭1, 별칭2</code> 형식으로 입력하세요.</p>
+          <textarea id="bankImport" rows="5" placeholder="음식 | 짜장면 | 자장면&#10;동물 | 고양이"></textarea>
+          <div class="btns" style="margin-top:8px"><button class="btn" id="bankImportBtn" type="button">일괄 추가</button>
+            <button class="btn danger" id="bankResetBtn" type="button">기본 뱅크로 초기화</button></div>
+        </details>
+        <div class="msg" id="bankMsg"></div>
+        <details id="bankListBox"><summary class="muted">목록 펼치기 (제시어가 모두 보입니다)</summary><div id="bankList"></div></details>
+      </section>
+    </main>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/common.js"></script>
+  <script src="/host.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "liar-game-page",
+  "version": "1.0.0",
+  "description": "20~30명이 한 강의실에서 하는 대규모 라이어 게임 (스크린 / 사회자 / 참가자)",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "simulate": "node scripts/simulate.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}
